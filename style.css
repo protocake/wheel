@@ -485,6 +485,15 @@ button.icon svg {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Fallback for very long titles on narrow screens: two lines, then shrink. */
+.topbar h1.wrap {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: 1.1;
+  text-wrap: balance;
+}
 .topbar-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 #btn-share { margin-right: 6px; }
 
@@ -722,6 +731,7 @@ dialog::backdrop { background: rgb(10 12 20 / .55); }
   text-wrap: balance;
   overflow-wrap: anywhere;
 }
+.winner-note { margin: -12px 0 18px; color: var(--muted); font-size: var(--step--1); }
 .dialog-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 
 #confetti {

@@ -73,6 +73,13 @@
             <input id="spin-time" type="range" min="2" max="20" value="6" />
             <output id="spin-time-label">6 s</output>
           </label>
+          <label class="option" for="winner-mode">
+            <span>Winners</span>
+            <select id="winner-mode">
+              <option value="stay">Stay on the wheel</option>
+              <option value="leave">Leave the wheel</option>
+            </select>
+          </label>
           <label class="option" for="skin">
             <span>Skin</span>
             <select id="skin"></select>
@@ -93,9 +100,12 @@
   <dialog id="winner-dialog">
     <p class="winner-label">Winner</p>
     <h2 id="winner-name"></h2>
+    <p id="winner-note" class="winner-note" hidden>Leaving the wheel</p>
     <div class="dialog-actions">
       <button id="btn-close">Close</button>
-      <button id="btn-remove" class="primary">Remove from wheel</button>
+      <button id="btn-remove">Remove from wheel</button>
+      <button id="btn-keep" hidden>Keep on wheel</button>
+      <button id="btn-again" class="primary">Spin again</button>
     </div>
   </dialog>
 

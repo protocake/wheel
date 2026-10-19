@@ -20,6 +20,8 @@
     muted: false,
     results: [],
     lastWinnerIndex: -1,
+    winnerMode: 'stay', // 'stay': winners can come up again; 'leave': winners come off the wheel
+    pendingRemoval: false,
     skin: document.documentElement.dataset.skin in SKINS ? document.documentElement.dataset.skin : DEFAULT_SKIN,
   };
   const skin = () => SKINS[state.skin];
@@ -33,6 +35,7 @@
         state.results = saved.results ?? [];
         state.muted = !!saved.muted;
         spinTimeEl.value = saved.spinTime ?? 6;
+        if (saved.winnerMode === 'leave') state.winnerMode = 'leave';
         return;
       }
     } catch {}
@@ -47,6 +50,7 @@
         muted: state.muted,
         spinTime: Number(spinTimeEl.value),
         skin: state.skin,
+        winnerMode: state.winnerMode,
       }));
     } catch {}
   }
@@ -58,6 +62,7 @@
   //   &title=Team%20Picker         heading + tab title
   //   &spin=10                     spin time in seconds (2–20)
   //   &skin=sticker                one of the ids in skins.js (applied in index.html before first paint)
+  //   &remove=1                    winners leave the wheel after each spin (remove=0 keeps them)
   function readUrlParams() {
     const params = new URLSearchParams(location.search);
     const entries = [
@@ -73,12 +78,35 @@
     const spinTime = Number(params.get('spin'));
     if (spinTime >= 2 && spinTime <= 20) spinTimeEl.value = Math.round(spinTime);
 
+    const remove = params.get('remove');
+    if (remove !== null) state.winnerMode = /^(1|true|yes)$/i.test(remove) ? 'leave' : 'stay';
+
     return entries.length > 0;
   }
 
   function setTitle(title) {
     $('wheel-title').textContent = title;
     document.title = title;
+    fitTitle();
+  }
+
+  // Shrink a long title to fit the header instead of cutting it off. If one line would get
+  // too small (narrow phones), let it wrap onto a second line and keep shrinking from there.
+  function fitTitle() {
+    const h1 = $('wheel-title');
+    h1.classList.remove('wrap');
+    h1.style.fontSize = '';
+    let px = parseFloat(getComputedStyle(h1).fontSize);
+    while (h1.scrollWidth > h1.clientWidth && px > 13) {
+      px = Math.max(13, px * Math.min(0.95, h1.clientWidth / h1.scrollWidth));
+      h1.style.fontSize = `${px}px`;
+    }
+    if (h1.scrollWidth <= h1.clientWidth) return;
+    h1.classList.add('wrap');
+    while (h1.scrollHeight > h1.clientHeight + 1 && px > 9) {
+      px = Math.max(9, px * 0.92);
+      h1.style.fontSize = `${px}px`;
+    }
   }
 
   function buildShareUrl() {
@@ -90,6 +118,7 @@
     if (title !== 'Wheel Spinner') params.set('title', title);
     if (spinTimeEl.value !== '6') params.set('spin', spinTimeEl.value);
     if (state.skin !== DEFAULT_SKIN) params.set('skin', state.skin);
+    if (state.winnerMode === 'leave') params.set('remove', '1');
     const url = new URL(location.href);
     url.search = params.toString();
     url.hash = '';
@@ -310,7 +339,9 @@
     const arcLimit = (radius * arc) / 2.2;
     const base = Math.min(34, (radius * arc) / 2.6, 640 / n) * s.label.scale;
     const fontSize = Math.min(arcLimit * s.label.scale, Math.max(11 * screenScale * s.label.scale, base));
-    ctx.font = `${s.label.weight} ${fontSize}px "${s.label.family}", ${cssVar('--font-body')}`;
+    const labelFont = (px) => `${s.label.weight} ${px}px "${s.label.family}", ${cssVar('--font-body')}`;
+    // Long names shrink to fit their slice, down to about 8px on screen, before being cut short.
+    const minFontSize = Math.min(fontSize, 8 * screenScale);
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
     const maxWidth = radius * 0.66;
@@ -319,6 +350,9 @@
       ctx.translate(c, c);
       ctx.rotate(state.rotation + i * arc + arc / 2);
       ctx.fillStyle = s.labelColor || textColorFor(sliceColor(s.colors, i, n), s.darkText);
+      ctx.font = labelFont(fontSize);
+      const width = ctx.measureText(label).width;
+      if (width > maxWidth) ctx.font = labelFont(Math.max(minFontSize, (fontSize * maxWidth) / width));
       let text = label;
       if (ctx.measureText(text).width > maxWidth) {
         while (ctx.measureText(text + '…').width > maxWidth && text.length > 1) text = text.slice(0, -1);
@@ -432,8 +466,14 @@
     renderResults();
     save();
 
+    // Never empty the wheel: the last name stays even in "leave" mode.
+    const canRemove = entries.length > 1;
+    state.pendingRemoval = state.winnerMode === 'leave' && canRemove;
     $('winner-name').textContent = winner;
-    $('btn-remove').hidden = entries.length <= 1;
+    $('winner-note').hidden = !state.pendingRemoval;
+    $('btn-keep').hidden = !state.pendingRemoval;
+    $('btn-remove').hidden = state.winnerMode === 'leave' || !canRemove;
+    $('btn-close').hidden = state.pendingRemoval;
     dialog.showModal();
     fanfare();
     confetti();
@@ -447,7 +487,6 @@
     if (lineIdx >= 0) lines.splice(lineIdx, 1);
     entriesEl.value = lines.join('\n');
     onEntriesChanged();
-    dialog.close();
   }
 
   // ---------- confetti ----------
@@ -534,7 +573,10 @@
 
     const fonts = $('skin-fonts');
     const href = `https://fonts.googleapis.com/css2?${s.fonts}&display=swap`;
-    const redrawWhenReady = () => document.fonts?.load(`${s.label.weight} 40px "${s.label.family}"`).then(draw, draw);
+    const redrawWhenReady = () => {
+      document.fonts?.load(`${s.label.weight} 40px "${s.label.family}"`).then(draw, draw);
+      document.fonts?.ready.then(fitTitle);
+    };
     if (fonts.href !== href) {
       fonts.addEventListener('load', redrawWhenReady, { once: true });
       fonts.href = href;
@@ -542,6 +584,7 @@
       redrawWhenReady();
     }
     draw();
+    fitTitle();
     save();
   }
 
@@ -568,8 +611,23 @@
   $('btn-clear').addEventListener('click', () => { if (confirm('Clear all entries?')) setEntries([]); });
   $('btn-clear-results').addEventListener('click', () => { state.results = []; renderResults(); save(); });
 
+  // In "leave" mode the winner comes off however the dialog closes (button, Esc, Spin again),
+  // unless "Keep on wheel" cancelled it.
+  dialog.addEventListener('close', () => {
+    if (state.pendingRemoval) removeWinner();
+    state.pendingRemoval = false;
+  });
   $('btn-close').addEventListener('click', () => dialog.close());
-  $('btn-remove').addEventListener('click', removeWinner);
+  $('btn-remove').addEventListener('click', () => { removeWinner(); dialog.close(); });
+  $('btn-keep').addEventListener('click', () => { state.pendingRemoval = false; dialog.close(); });
+  $('btn-again').addEventListener('click', () => {
+    // The dialog's close event fires asynchronously, so remove now, before the next spin starts.
+    if (state.pendingRemoval) removeWinner();
+    state.pendingRemoval = false;
+    dialog.close();
+    spin();
+  });
+  $('winner-mode').addEventListener('change', (e) => { state.winnerMode = e.target.value; save(); });
 
   $('btn-mute').addEventListener('click', () => { state.muted = !state.muted; updateMuteIcon(); save(); });
   $('btn-fullscreen').addEventListener('click', () => {
@@ -603,13 +661,15 @@
   if (!document.fullscreenEnabled) $('btn-fullscreen').hidden = true;
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
   new ResizeObserver(() => { if (!state.spinning) draw(); }).observe(canvas);
-  document.fonts?.ready.then(draw);
+  document.fonts?.ready.then(() => { draw(); fitTitle(); });
+  new ResizeObserver(fitTitle).observe(document.querySelector('.topbar'));
 
   load();
   // A shared link's entries replace whatever this browser had saved.
   if (readUrlParams()) state.results = [];
   $('spin-time-label').textContent = `${spinTimeEl.value} s`;
   updateMuteIcon();
+  $('winner-mode').value = state.winnerMode;
   renderResults();
   onEntriesChanged();
   applySkin(state.skin);
