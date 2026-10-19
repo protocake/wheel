@@ -428,6 +428,9 @@
 
   // ---------- spin ----------
   const easeOut = (t) => 1 - Math.pow(1 - t, 4);
+  // At full speed slices pass the pointer far faster than a click reads as a click;
+  // cap it at ~12 clicks a second. Slices still get counted, just not all voiced.
+  const MIN_TICK_MS = 80;
 
   function spin() {
     const entries = getEntries();
@@ -442,13 +445,17 @@
     const delta = turns * Math.PI * 2 + Math.random() * Math.PI * 2;
     const t0 = performance.now();
     let lastIndex = indexAtPointer(entries.length);
+    let lastTickAt = -Infinity;
 
     function frame(now) {
       const t = Math.min(1, (now - t0) / duration);
       state.rotation = start + delta * easeOut(t);
       draw();
       const idx = indexAtPointer(entries.length);
-      if (idx !== lastIndex) { tick(); flap(); lastIndex = idx; }
+      if (idx !== lastIndex) {
+        lastIndex = idx;
+        if (now - lastTickAt >= MIN_TICK_MS) { tick(); flap(); lastTickAt = now; }
+      }
       if (t < 1) requestAnimationFrame(frame);
       else finish(entries);
     }
