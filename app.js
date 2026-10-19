@@ -1,7 +1,8 @@
 (() => {
   'use strict';
 
-  const COLORS = ['#2d4fe0', '#f2b134', '#e5484d', '#1fa38a', '#8e4ec6', '#f76b15'];
+  const SKINS = window.WHEEL_SKINS;
+  const DEFAULT_SKIN = window.WHEEL_DEFAULT_SKIN;
   const DEFAULT_ENTRIES = ['Ali', 'Beatriz', 'Charles', 'Diya', 'Eric', 'Fatima', 'Gabriel', 'Hanna'];
   const STORAGE_KEY = 'wheel-state-v1';
 
@@ -19,7 +20,9 @@
     muted: false,
     results: [],
     lastWinnerIndex: -1,
+    skin: document.documentElement.dataset.skin in SKINS ? document.documentElement.dataset.skin : DEFAULT_SKIN,
   };
+  const skin = () => SKINS[state.skin];
 
   // ---------- persistence ----------
   function load() {
@@ -43,6 +46,7 @@
         results: state.results,
         muted: state.muted,
         spinTime: Number(spinTimeEl.value),
+        skin: state.skin,
       }));
     } catch {}
   }
@@ -53,6 +57,7 @@
   //   ?name=Smith, John&name=Bea   repeated, for entries that contain commas
   //   &title=Team%20Picker         heading + tab title
   //   &spin=10                     spin time in seconds (2–20)
+  //   &skin=sticker                one of the ids in skins.js (applied in index.html before first paint)
   function readUrlParams() {
     const params = new URLSearchParams(location.search);
     const entries = [
@@ -84,6 +89,7 @@
     const title = $('wheel-title').textContent;
     if (title !== 'Wheel Spinner') params.set('title', title);
     if (spinTimeEl.value !== '6') params.set('spin', spinTimeEl.value);
+    if (state.skin !== DEFAULT_SKIN) params.set('skin', state.skin);
     const url = new URL(location.href);
     url.search = params.toString();
     url.hash = '';
@@ -107,89 +113,211 @@
   }
 
   // ---------- drawing ----------
-  function textColorFor(hex) {
+  function textColorFor(hex, dark) {
     const n = parseInt(hex.slice(1), 16);
     const r = n >> 16, g = (n >> 8) & 255, b = n & 255;
-    return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? '#161a26' : '#ffffff';
+    return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? dark : '#ffffff';
   }
 
   const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const resolve = (color) => (color.startsWith('--') ? cssVar(color) : color);
+
+  function circle(c, r) {
+    ctx.beginPath();
+    ctx.arc(c, c, r, 0, Math.PI * 2);
+  }
+
+  function sliceColor(colors, i, n) {
+    // Don't let the last slice match the first one it wraps around to.
+    if (n > 1 && i === n - 1 && i % colors.length === 0) return colors[2 % colors.length];
+    return colors[i % colors.length];
+  }
+
+  // Pointed lotus petals around the outside of the wheel (Mandala).
+  function drawPetals(c, outer, inner, p) {
+    const step = (Math.PI * 2) / p.count;
+    const half = inner * Math.sin(step / 2) * 1.15;
+    ctx.lineWidth = canvas.width * 0.0035;
+    ctx.strokeStyle = p.stroke;
+    ctx.lineJoin = 'round';
+    for (let i = 0; i < p.count; i++) {
+      ctx.save();
+      ctx.translate(c, c);
+      ctx.rotate(state.rotation + i * step + step / 2);
+      const base = inner - half * 0.4;
+      const ctrl = base + (outer - base) * 0.55;
+      ctx.beginPath();
+      ctx.moveTo(base, -half);
+      ctx.quadraticCurveTo(ctrl, -half, outer, 0);
+      ctx.quadraticCurveTo(ctrl, half, base, half);
+      ctx.closePath();
+      ctx.fillStyle = p.colors[i % p.colors.length];
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function drawPeg(shape, x, y, r, angle, color, center) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.fillStyle = color;
+    if (shape === 'dot') {
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (shape === 'flower') {
+      for (let k = 0; k < 5; k++) {
+        ctx.save();
+        ctx.rotate((k * Math.PI * 2) / 5);
+        ctx.beginPath();
+        ctx.ellipse(0, -r * 0.62, r * 0.42, r * 0.62, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.32, 0, Math.PI * 2);
+      ctx.fillStyle = center;
+      ctx.fill();
+    }
+    ctx.restore();
+  }
 
   function draw() {
+    const s = skin();
     const entries = getEntries();
     const n = entries.length;
     const size = canvas.width;
     const c = size / 2;
-    const rimWidth = size * 0.028;
-    const outer = c - 2;
-    const radius = outer - rimWidth;
-    const rim = cssVar('--wheel-rim');
-    const peg = cssVar('--peg');
     ctx.clearRect(0, 0, size, size);
 
+    let outer = c - 2;
+    if (s.petals) {
+      const inner = outer - size * s.petals.depth;
+      drawPetals(c, outer, inner, s.petals);
+      outer = inner;
+    }
+
     // Rim
-    ctx.beginPath();
-    ctx.arc(c, c, outer, 0, Math.PI * 2);
-    ctx.fillStyle = rim;
+    const rimWidth = size * s.rim.width;
+    circle(c, outer);
+    ctx.fillStyle = resolve(s.rim.color);
     ctx.fill();
+    if (s.rim.stroke) {
+      const w = size * s.rim.strokeWidth;
+      circle(c, outer - w / 2);
+      ctx.lineWidth = w;
+      ctx.strokeStyle = s.rim.stroke;
+      ctx.stroke();
+    }
+    const radius = outer - rimWidth;
+    if (s.rim.inner) {
+      circle(c, radius + size * 0.002);
+      ctx.lineWidth = size * 0.005;
+      ctx.strokeStyle = s.rim.inner;
+      ctx.stroke();
+    }
+    if (s.paper) {
+      circle(c, radius);
+      ctx.fillStyle = s.paper;
+      ctx.fill();
+    }
 
     if (n === 0) {
-      ctx.beginPath();
-      ctx.arc(c, c, radius, 0, Math.PI * 2);
+      circle(c, radius);
       ctx.fillStyle = cssVar('--line');
       ctx.fill();
       ctx.fillStyle = cssVar('--muted');
       ctx.font = `500 ${size * 0.032}px ${cssVar('--font-body')}`;
       ctx.textAlign = 'center';
-      ctx.fillText('Add names to fill the wheel', c, c + size * 0.14);
+      ctx.fillText('Add names to fill the wheel', c, c + size * 0.15);
       return;
     }
 
     const arc = (Math.PI * 2) / n;
-    // Sized in canvas pixels, but never under ~11px on screen (small phones scale the canvas down a lot).
-    const screenScale = size / (canvas.clientWidth || size);
-    const arcLimit = (radius * arc) / 2.2;
-    const fontSize = Math.min(arcLimit, Math.max(11 * screenScale, Math.min(34, (radius * arc) / 2.6, 640 / n)));
-    ctx.font = `600 ${fontSize}px ${cssVar('--font-body')}`;
 
-    entries.forEach((label, i) => {
+    // Slices
+    ctx.globalAlpha = s.sliceAlpha ?? 1;
+    entries.forEach((_, i) => {
       const start = state.rotation + i * arc;
-      let color = COLORS[i % COLORS.length];
-      // Don't let the last slice match the first one it wraps around to.
-      if (n > 1 && i === n - 1 && i % COLORS.length === 0) color = COLORS[2];
-
       ctx.beginPath();
       ctx.moveTo(c, c);
       ctx.arc(c, c, radius, start, start + arc);
       ctx.closePath();
-      ctx.fillStyle = color;
+      ctx.fillStyle = sliceColor(s.colors, i, n);
       ctx.fill();
+    });
+    ctx.globalAlpha = 1;
 
+    if (s.separators && n > 1) {
+      ctx.lineWidth = size * s.separators.width;
+      ctx.strokeStyle = s.separators.color;
+      ctx.lineCap = 'round';
+      for (let i = 0; i < n; i++) {
+        const a = state.rotation + i * arc;
+        ctx.beginPath();
+        ctx.moveTo(c, c);
+        ctx.lineTo(c + Math.cos(a) * radius, c + Math.sin(a) * radius);
+        ctx.stroke();
+      }
+    }
+    if (s.innerRing) {
+      circle(c, radius * s.innerRing.at);
+      ctx.lineWidth = size * s.innerRing.width;
+      ctx.strokeStyle = s.innerRing.color;
+      ctx.stroke();
+    }
+    if (s.gloss) {
+      const g = ctx.createRadialGradient(c - radius * 0.32, c - radius * 0.5, 0, c - radius * 0.32, c - radius * 0.5, radius * 0.95);
+      g.addColorStop(0, 'rgba(255,255,255,.55)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      circle(c, radius);
+      ctx.fillStyle = g;
+      ctx.fill();
+    }
+    if (s.rim.color === '#111111' || s.petals) {
+      // Outline the slice disc for the inked skins.
+      circle(c, radius);
+      ctx.lineWidth = size * (s.petals ? 0.005 : 0.004);
+      ctx.strokeStyle = s.petals ? s.petals.stroke : '#111111';
+      ctx.stroke();
+    }
+
+    // Labels. Sized in canvas pixels, but never under ~11px on screen
+    // (small phones scale the canvas down a lot).
+    const screenScale = size / (canvas.clientWidth || size);
+    const arcLimit = (radius * arc) / 2.2;
+    const base = Math.min(34, (radius * arc) / 2.6, 640 / n) * s.label.scale;
+    const fontSize = Math.min(arcLimit * s.label.scale, Math.max(11 * screenScale * s.label.scale, base));
+    ctx.font = `${s.label.weight} ${fontSize}px "${s.label.family}", ${cssVar('--font-body')}`;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    const maxWidth = radius * 0.66;
+    entries.forEach((label, i) => {
       ctx.save();
       ctx.translate(c, c);
-      ctx.rotate(start + arc / 2);
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = textColorFor(color);
-      const maxWidth = radius * 0.68;
+      ctx.rotate(state.rotation + i * arc + arc / 2);
+      ctx.fillStyle = s.labelColor || textColorFor(sliceColor(s.colors, i, n), s.darkText);
       let text = label;
       if (ctx.measureText(text).width > maxWidth) {
         while (ctx.measureText(text + '…').width > maxWidth && text.length > 1) text = text.slice(0, -1);
         text += '…';
       }
-      ctx.fillText(text, radius - size * 0.03, 0);
+      ctx.fillText(text, radius - size * 0.035, 0);
       ctx.restore();
     });
 
     // Pegs on the rim at each slice boundary (skipped when they'd crowd together).
-    if (n > 1 && n <= 80) {
-      const pegR = Math.min(rimWidth * 0.32, (outer * arc) / 5);
-      ctx.fillStyle = peg;
+    if (s.pegs && n > 1 && n <= 80) {
+      const ringR = radius + rimWidth / 2;
+      const pegR = s.pegs.shape === 'dot'
+        ? Math.min(rimWidth * 0.32, (outer * arc) / 5)
+        : Math.min(rimWidth * 0.48, (outer * arc) / 3);
+      const colors = s.pegs.colors.map(resolve);
       for (let i = 0; i < n; i++) {
         const a = state.rotation + i * arc;
-        ctx.beginPath();
-        ctx.arc(c + Math.cos(a) * (radius + rimWidth / 2), c + Math.sin(a) * (radius + rimWidth / 2), pegR, 0, Math.PI * 2);
-        ctx.fill();
+        drawPeg(s.pegs.shape, c + Math.cos(a) * ringR, c + Math.sin(a) * ringR, pegR, a, colors[i % colors.length], s.pegs.center);
       }
     }
   }
@@ -317,8 +445,9 @@
       vr: (Math.random() - 0.5) * 0.4,
       w: 6 + Math.random() * 6,
       h: 8 + Math.random() * 8,
-      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      color: skin().colors[Math.floor(Math.random() * skin().colors.length)],
     }));
+    const shape = skin().confetti;
     const t0 = performance.now();
     (function step(now) {
       cctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
@@ -329,7 +458,13 @@
         cctx.translate(p.x, p.y);
         cctx.rotate(p.r);
         cctx.fillStyle = p.color;
-        cctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        if (shape === 'petals') {
+          cctx.beginPath();
+          cctx.ellipse(0, 0, p.w * 0.6, p.h * 0.75, 0, 0, Math.PI * 2);
+          cctx.fill();
+        } else {
+          cctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        }
         cctx.restore();
       });
       if (now - t0 < 4000) requestAnimationFrame(step);
@@ -358,6 +493,33 @@
   function setEntries(list) {
     entriesEl.value = list.join('\n');
     onEntriesChanged();
+  }
+
+  function applySkin(id) {
+    if (!SKINS[id]) return;
+    state.skin = id;
+    const s = skin();
+    document.documentElement.dataset.skin = id;
+    $('skin').value = id;
+    $('hub').textContent = s.hub;
+    const hint = document.querySelector('.hint-skin');
+    hint.textContent = s.hint ?? '';
+    hint.hidden = !s.hint;
+    document.querySelector('.hint-mouse').hidden = !!s.hint;
+    document.querySelector('.hint-touch').hidden = !!s.hint;
+    document.querySelectorAll('meta[name="theme-color"]').forEach((m) => { m.content = cssVar('--bg'); });
+
+    const fonts = $('skin-fonts');
+    const href = `https://fonts.googleapis.com/css2?${s.fonts}&display=swap`;
+    const redrawWhenReady = () => document.fonts?.load(`${s.label.weight} 40px "${s.label.family}"`).then(draw, draw);
+    if (fonts.href !== href) {
+      fonts.addEventListener('load', redrawWhenReady, { once: true });
+      fonts.href = href;
+    } else {
+      redrawWhenReady();
+    }
+    draw();
+    save();
   }
 
   function updateMuteIcon() {
@@ -412,6 +574,9 @@
 
   $('btn-share').addEventListener('click', shareLink);
 
+  Object.entries(SKINS).forEach(([id, s]) => $('skin').add(new Option(s.name, id)));
+  $('skin').addEventListener('change', (e) => applySkin(e.target.value));
+
   if (!document.fullscreenEnabled) $('btn-fullscreen').hidden = true;
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
   new ResizeObserver(() => { if (!state.spinning) draw(); }).observe(canvas);
@@ -424,4 +589,5 @@
   updateMuteIcon();
   renderResults();
   onEntriesChanged();
+  applySkin(state.skin);
 })();

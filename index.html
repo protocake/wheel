@@ -8,8 +8,22 @@
   <meta name="theme-color" content="#0f121a" media="(prefers-color-scheme: dark)" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600&display=swap" />
   <link rel="stylesheet" href="style.css" />
+  <script src="skins.js"></script>
+  <script>
+    // Pick the skin before first paint so the page never flashes the default look.
+    (function () {
+      var skins = window.WHEEL_SKINS, id = new URLSearchParams(location.search).get('skin');
+      if (!skins[id]) { try { id = JSON.parse(localStorage.getItem('wheel-state-v1')).skin; } catch (e) {} }
+      if (!skins[id]) id = window.WHEEL_DEFAULT_SKIN;
+      document.documentElement.dataset.skin = id;
+      var link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.id = 'skin-fonts';
+      link.href = 'https://fonts.googleapis.com/css2?' + skins[id].fonts + '&display=swap';
+      document.head.appendChild(link);
+    })();
+  </script>
 </head>
 <body>
   <header class="topbar">
@@ -30,12 +44,13 @@
     <section class="wheel-area">
       <div class="wheel-wrap">
         <canvas id="wheel" width="1000" height="1000" aria-label="Spinning wheel"></canvas>
-        <div class="pointer" id="pointer" aria-hidden="true"></div>
+        <svg class="pointer" id="pointer" viewBox="0 0 60 44" preserveAspectRatio="none" aria-hidden="true"><path d="M3 22 L57 3 L57 41 Z" /></svg>
         <button id="hub" class="hub" aria-label="Spin the wheel">Spin</button>
       </div>
       <p class="hint">
         <span class="hint-mouse">Click the wheel or press <kbd>Ctrl</kbd> <kbd>Enter</kbd> to spin</span>
         <span class="hint-touch">Tap the wheel to spin</span>
+        <span class="hint-skin" hidden></span>
       </p>
     </section>
 
@@ -52,11 +67,17 @@
           <button id="btn-clear" class="danger">Clear</button>
         </div>
         <textarea id="entries" spellcheck="false" placeholder="One name per line"></textarea>
-        <label class="option" for="spin-time">
-          <span>Spin time</span>
-          <input id="spin-time" type="range" min="2" max="20" value="6" />
-          <output id="spin-time-label">6 s</output>
-        </label>
+        <div class="settings">
+          <label class="option" for="spin-time">
+            <span>Spin time</span>
+            <input id="spin-time" type="range" min="2" max="20" value="6" />
+            <output id="spin-time-label">6 s</output>
+          </label>
+          <label class="option" for="skin">
+            <span>Skin</span>
+            <select id="skin"></select>
+          </label>
+        </div>
       </div>
 
       <div class="tab-panel" id="panel-results" hidden>
