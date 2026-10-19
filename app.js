@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const COLORS = ['#3369e8', '#d50f25', '#eeb211', '#009925'];
+  const COLORS = ['#2d4fe0', '#f2b134', '#e5484d', '#1fa38a', '#8e4ec6', '#f76b15'];
   const DEFAULT_ENTRIES = ['Ali', 'Beatriz', 'Charles', 'Diya', 'Eric', 'Fatima', 'Gabriel', 'Hanna'];
   const STORAGE_KEY = 'wheel-state-v1';
 
@@ -110,33 +110,53 @@
   function textColorFor(hex) {
     const n = parseInt(hex.slice(1), 16);
     const r = n >> 16, g = (n >> 8) & 255, b = n & 255;
-    return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? '#1d1f24' : '#ffffff';
+    return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? '#161a26' : '#ffffff';
   }
+
+  const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
   function draw() {
     const entries = getEntries();
+    const n = entries.length;
     const size = canvas.width;
     const c = size / 2;
-    const radius = c - 6;
+    const rimWidth = size * 0.028;
+    const outer = c - 2;
+    const radius = outer - rimWidth;
+    const rim = cssVar('--wheel-rim');
+    const peg = cssVar('--peg');
     ctx.clearRect(0, 0, size, size);
 
-    if (entries.length === 0) {
+    // Rim
+    ctx.beginPath();
+    ctx.arc(c, c, outer, 0, Math.PI * 2);
+    ctx.fillStyle = rim;
+    ctx.fill();
+
+    if (n === 0) {
       ctx.beginPath();
       ctx.arc(c, c, radius, 0, Math.PI * 2);
-      ctx.fillStyle = '#ccc';
+      ctx.fillStyle = cssVar('--line');
       ctx.fill();
+      ctx.fillStyle = cssVar('--muted');
+      ctx.font = `500 ${size * 0.032}px ${cssVar('--font-body')}`;
+      ctx.textAlign = 'center';
+      ctx.fillText('Add names to fill the wheel', c, c + size * 0.14);
       return;
     }
 
-    const arc = (Math.PI * 2) / entries.length;
-    // Avoid two adjacent slices sharing a color when count % palette === 1.
-    const palette = entries.length % COLORS.length === 1 && entries.length > 1
-      ? [...COLORS, '#8e44ad'] : COLORS;
-    const fontSize = Math.max(12, Math.min(48, (radius * arc) / 2.2, 900 / entries.length));
+    const arc = (Math.PI * 2) / n;
+    // Sized in canvas pixels, but never under ~11px on screen (small phones scale the canvas down a lot).
+    const screenScale = size / (canvas.clientWidth || size);
+    const arcLimit = (radius * arc) / 2.2;
+    const fontSize = Math.min(arcLimit, Math.max(11 * screenScale, Math.min(34, (radius * arc) / 2.6, 640 / n)));
+    ctx.font = `600 ${fontSize}px ${cssVar('--font-body')}`;
 
     entries.forEach((label, i) => {
       const start = state.rotation + i * arc;
-      const color = palette[i % palette.length];
+      let color = COLORS[i % COLORS.length];
+      // Don't let the last slice match the first one it wraps around to.
+      if (n > 1 && i === n - 1 && i % COLORS.length === 0) color = COLORS[2];
 
       ctx.beginPath();
       ctx.moveTo(c, c);
@@ -144,11 +164,6 @@
       ctx.closePath();
       ctx.fillStyle = color;
       ctx.fill();
-      if (entries.length > 1) {
-        ctx.strokeStyle = 'rgba(255,255,255,.6)';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      }
 
       ctx.save();
       ctx.translate(c, c);
@@ -156,20 +171,27 @@
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = textColorFor(color);
-      ctx.font = `600 ${fontSize}px system-ui, sans-serif`;
-      const maxWidth = radius * 0.72;
+      const maxWidth = radius * 0.68;
       let text = label;
-      while (ctx.measureText(text).width > maxWidth && text.length > 1) text = text.slice(0, -1);
-      if (text !== label) text = text.slice(0, -1) + '…';
-      ctx.fillText(text, radius - 20, 0);
+      if (ctx.measureText(text).width > maxWidth) {
+        while (ctx.measureText(text + '…').width > maxWidth && text.length > 1) text = text.slice(0, -1);
+        text += '…';
+      }
+      ctx.fillText(text, radius - size * 0.03, 0);
       ctx.restore();
     });
 
-    ctx.beginPath();
-    ctx.arc(c, c, radius, 0, Math.PI * 2);
-    ctx.lineWidth = 6;
-    ctx.strokeStyle = '#ffffff';
-    ctx.stroke();
+    // Pegs on the rim at each slice boundary (skipped when they'd crowd together).
+    if (n > 1 && n <= 80) {
+      const pegR = Math.min(rimWidth * 0.32, (outer * arc) / 5);
+      ctx.fillStyle = peg;
+      for (let i = 0; i < n; i++) {
+        const a = state.rotation + i * arc;
+        ctx.beginPath();
+        ctx.arc(c + Math.cos(a) * (radius + rimWidth / 2), c + Math.sin(a) * (radius + rimWidth / 2), pegR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
   }
 
   // Index of the slice currently under the pointer (pointer sits at angle 0, i.e. 3 o'clock).
@@ -211,6 +233,17 @@
     });
   }
 
+  // Kick the pointer up as a peg passes it.
+  const pointerEl = $('pointer');
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  function flap() {
+    if (reduceMotion.matches) return;
+    pointerEl.animate(
+      [{ transform: 'rotate(-22deg)' }, { transform: 'rotate(0deg)' }],
+      { duration: 140, easing: 'ease-out' },
+    );
+  }
+
   // ---------- spin ----------
   const easeOut = (t) => 1 - Math.pow(1 - t, 4);
 
@@ -233,7 +266,7 @@
       state.rotation = start + delta * easeOut(t);
       draw();
       const idx = indexAtPointer(entries.length);
-      if (idx !== lastIndex) { tick(); lastIndex = idx; }
+      if (idx !== lastIndex) { tick(); flap(); lastIndex = idx; }
       if (t < 1) requestAnimationFrame(frame);
       else finish(entries);
     }
@@ -313,6 +346,7 @@
       resultsEl.appendChild(li);
     });
     $('count-results').textContent = state.results.length;
+    $('results-empty').hidden = state.results.length > 0;
   }
 
   function onEntriesChanged() {
@@ -326,7 +360,11 @@
     onEntriesChanged();
   }
 
-  function updateMuteIcon() { $('btn-mute').textContent = state.muted ? '🔇' : '🔊'; }
+  function updateMuteIcon() {
+    const btn = $('btn-mute');
+    btn.setAttribute('aria-pressed', String(state.muted));
+    btn.title = btn.ariaLabel = state.muted ? 'Unmute sound' : 'Mute sound';
+  }
 
   canvas.addEventListener('click', spin);
   $('hub').addEventListener('click', spin);
@@ -355,15 +393,16 @@
   });
 
   spinTimeEl.addEventListener('input', () => {
-    $('spin-time-label').textContent = `${spinTimeEl.value}s`;
+    $('spin-time-label').textContent = `${spinTimeEl.value} s`;
     save();
   });
 
   document.querySelectorAll('.tab').forEach((tab) => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t === tab));
-      $('panel-entries').classList.toggle('hidden', tab.dataset.tab !== 'entries');
-      $('panel-results').classList.toggle('hidden', tab.dataset.tab !== 'results');
+      document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-selected', String(t === tab)));
+      $('panel-entries').hidden = tab.dataset.tab !== 'entries';
+      $('panel-results').hidden = tab.dataset.tab !== 'results';
     });
   });
 
@@ -373,10 +412,15 @@
 
   $('btn-share').addEventListener('click', shareLink);
 
+  if (!document.fullscreenEnabled) $('btn-fullscreen').hidden = true;
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+  new ResizeObserver(() => { if (!state.spinning) draw(); }).observe(canvas);
+  document.fonts?.ready.then(draw);
+
   load();
   // A shared link's entries replace whatever this browser had saved.
   if (readUrlParams()) state.results = [];
-  $('spin-time-label').textContent = `${spinTimeEl.value}s`;
+  $('spin-time-label').textContent = `${spinTimeEl.value} s`;
   updateMuteIcon();
   renderResults();
   onEntriesChanged();

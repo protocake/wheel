@@ -2,65 +2,79 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Wheel Spinner</title>
+  <meta name="theme-color" content="#eef1f6" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0f121a" media="(prefers-color-scheme: dark)" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600&display=swap" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header class="topbar">
     <h1 id="wheel-title">Wheel Spinner</h1>
     <div class="topbar-actions">
-      <button id="btn-share" title="Copy a link to this wheel">Share link</button>
-      <button id="btn-fullscreen" class="ghost" title="Fullscreen">⛶</button>
-      <button id="btn-mute" class="ghost" title="Toggle sound">🔊</button>
+      <button id="btn-share" class="primary" title="Copy a link to this wheel">Share link</button>
+      <button id="btn-fullscreen" class="icon" title="Fullscreen" aria-label="Fullscreen">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
+      </button>
+      <button id="btn-mute" class="icon" title="Mute sound" aria-label="Mute sound" aria-pressed="false">
+        <svg class="on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" /><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" /></svg>
+        <svg class="off" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" /><path d="M17 9l5 6M22 9l-5 6" /></svg>
+      </button>
     </div>
   </header>
 
   <main class="layout">
     <section class="wheel-area">
       <div class="wheel-wrap">
-        <canvas id="wheel" width="800" height="800" aria-label="Spinning wheel"></canvas>
-        <div class="pointer" aria-hidden="true"></div>
-        <button id="hub" class="hub" aria-label="Spin the wheel">SPIN</button>
+        <canvas id="wheel" width="1000" height="1000" aria-label="Spinning wheel"></canvas>
+        <div class="pointer" id="pointer" aria-hidden="true"></div>
+        <button id="hub" class="hub" aria-label="Spin the wheel">Spin</button>
       </div>
-      <p class="hint">Click the wheel or press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to spin</p>
+      <p class="hint">
+        <span class="hint-mouse">Click the wheel or press <kbd>Ctrl</kbd> <kbd>Enter</kbd> to spin</span>
+        <span class="hint-touch">Tap the wheel to spin</span>
+      </p>
     </section>
 
     <aside class="panel">
       <div class="tabs" role="tablist">
-        <button class="tab active" data-tab="entries" role="tab">Entries <span id="count-entries" class="badge">0</span></button>
-        <button class="tab" data-tab="results" role="tab">Results <span id="count-results" class="badge">0</span></button>
+        <button class="tab active" data-tab="entries" role="tab" aria-selected="true">Entries <span id="count-entries" class="badge">0</span></button>
+        <button class="tab" data-tab="results" role="tab" aria-selected="false">Results <span id="count-results" class="badge">0</span></button>
       </div>
 
       <div class="tab-panel" id="panel-entries">
         <div class="toolbar">
           <button id="btn-shuffle">Shuffle</button>
-          <button id="btn-sort">Sort</button>
+          <button id="btn-sort">Sort A–Z</button>
           <button id="btn-clear" class="danger">Clear</button>
         </div>
-        <textarea id="entries" spellcheck="false" placeholder="One entry per line"></textarea>
-        <label class="option">
-          Spin time
+        <textarea id="entries" spellcheck="false" placeholder="One name per line"></textarea>
+        <label class="option" for="spin-time">
+          <span>Spin time</span>
           <input id="spin-time" type="range" min="2" max="20" value="6" />
-          <span id="spin-time-label">6s</span>
+          <output id="spin-time-label">6 s</output>
         </label>
       </div>
 
-      <div class="tab-panel hidden" id="panel-results">
+      <div class="tab-panel" id="panel-results" hidden>
         <div class="toolbar">
           <button id="btn-clear-results" class="danger">Clear results</button>
         </div>
         <ol id="results"></ol>
+        <p id="results-empty" class="empty">Winners show up here after each spin.</p>
       </div>
     </aside>
   </main>
 
   <dialog id="winner-dialog">
-    <p class="winner-label">We have a winner!</p>
+    <p class="winner-label">Winner</p>
     <h2 id="winner-name"></h2>
     <div class="dialog-actions">
       <button id="btn-close">Close</button>
-      <button id="btn-remove" class="primary">Remove</button>
+      <button id="btn-remove" class="primary">Remove from wheel</button>
     </div>
   </dialog>
 
