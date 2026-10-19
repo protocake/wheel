@@ -473,9 +473,13 @@ button.icon svg {
   background: var(--topbar-bg);
   border-bottom: var(--topbar-border);
 }
+.title-wrap { display: flex; align-items: center; gap: 2px; min-width: 0; flex: 1 1 auto; }
 .topbar h1 {
   margin: 0;
   min-width: 0;
+  cursor: text;
+  border-radius: 4px;
+  outline-offset: 3px;
   font-family: var(--font-display);
   font-weight: var(--title-weight);
   font-size: var(--title-size);
@@ -494,6 +498,12 @@ button.icon svg {
   line-height: 1.1;
   text-wrap: balance;
 }
+.topbar h1:hover { background: rgb(127 127 127 / .1); }
+.topbar h1:focus { outline: 2px dashed var(--accent); text-overflow: clip; background: transparent; }
+button.icon.rename { width: 28px; height: 28px; flex-shrink: 0; opacity: .55; }
+button.icon.rename svg { width: 15px; height: 15px; }
+.title-wrap:hover button.icon.rename, button.icon.rename:focus-visible { opacity: 1; }
+.topbar h1:focus + button.icon.rename { visibility: hidden; }
 .topbar-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 #btn-share { margin-right: 6px; }
 

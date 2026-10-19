@@ -5,6 +5,7 @@
   const DEFAULT_SKIN = window.WHEEL_DEFAULT_SKIN;
   const DEFAULT_ENTRIES = ['Ali', 'Beatriz', 'Charles', 'Diya', 'Eric', 'Fatima', 'Gabriel', 'Hanna'];
   const STORAGE_KEY = 'wheel-state-v1';
+  const DEFAULT_TITLE = 'Wheel Spinner';
 
   const $ = (id) => document.getElementById(id);
   const canvas = $('wheel');
@@ -36,6 +37,7 @@
         state.muted = !!saved.muted;
         spinTimeEl.value = saved.spinTime ?? 6;
         if (saved.winnerMode === 'leave') state.winnerMode = 'leave';
+        if (saved.title) setTitle(saved.title);
         return;
       }
     } catch {}
@@ -51,6 +53,7 @@
         spinTime: Number(spinTimeEl.value),
         skin: state.skin,
         winnerMode: state.winnerMode,
+        title: $('wheel-title').textContent,
       }));
     } catch {}
   }
@@ -72,8 +75,10 @@
 
     if (entries.length) entriesEl.value = entries.join('\n');
 
+    // A shared wheel shows its own title, never the visitor's saved one.
     const title = params.get('title')?.trim();
     if (title) setTitle(title);
+    else if (entries.length) setTitle(DEFAULT_TITLE);
 
     const spinTime = Number(params.get('spin'));
     if (spinTime >= 2 && spinTime <= 20) spinTimeEl.value = Math.round(spinTime);
@@ -96,12 +101,18 @@
     const h1 = $('wheel-title');
     h1.classList.remove('wrap');
     h1.style.fontSize = '';
+    // scrollWidth/clientWidth round to whole pixels, which can hide a fractional overflow
+    // that still triggers the ellipsis, so measure the text itself.
+    const range = document.createRange();
+    range.selectNodeContents(h1);
+    const textWidth = () => range.getBoundingClientRect().width;
+    const boxWidth = () => h1.getBoundingClientRect().width;
     let px = parseFloat(getComputedStyle(h1).fontSize);
-    while (h1.scrollWidth > h1.clientWidth && px > 13) {
-      px = Math.max(13, px * Math.min(0.95, h1.clientWidth / h1.scrollWidth));
+    while (textWidth() > boxWidth() && px > 13) {
+      px = Math.max(13, px * Math.min(0.95, boxWidth() / textWidth()));
       h1.style.fontSize = `${px}px`;
     }
-    if (h1.scrollWidth <= h1.clientWidth) return;
+    if (textWidth() <= boxWidth()) return;
     h1.classList.add('wrap');
     while (h1.scrollHeight > h1.clientHeight + 1 && px > 9) {
       px = Math.max(9, px * 0.92);
@@ -115,7 +126,7 @@
     if (entries.some((e) => e.includes(','))) entries.forEach((e) => params.append('name', e));
     else if (entries.length) params.set('names', entries.join(','));
     const title = $('wheel-title').textContent;
-    if (title !== 'Wheel Spinner') params.set('title', title);
+    if (title !== DEFAULT_TITLE) params.set('title', title);
     if (spinTimeEl.value !== '6') params.set('spin', spinTimeEl.value);
     if (state.skin !== DEFAULT_SKIN) params.set('skin', state.skin);
     if (state.winnerMode === 'leave') params.set('remove', '1');
@@ -580,9 +591,15 @@
 
     const fonts = $('skin-fonts');
     const href = `https://fonts.googleapis.com/css2?${s.fonts}&display=swap`;
+    // Load the wheel's label font and the title's display font explicitly: fonts.ready can
+    // resolve before a face that nothing has asked for yet, and the title would be measured
+    // in the fallback font.
     const redrawWhenReady = () => {
-      document.fonts?.load(`${s.label.weight} 40px "${s.label.family}"`).then(draw, draw);
-      document.fonts?.ready.then(fitTitle);
+      if (!document.fonts) return;
+      Promise.all([
+        document.fonts.load(`${s.label.weight} 40px "${s.label.family}"`),
+        document.fonts.load(`${cssVar('--title-weight')} 32px ${cssVar('--font-display')}`),
+      ]).finally(() => { draw(); fitTitle(); });
     };
     if (fonts.href !== href) {
       fonts.addEventListener('load', redrawWhenReady, { once: true });
@@ -661,6 +678,32 @@
   });
 
   $('btn-share').addEventListener('click', shareLink);
+
+  // ---------- editable title ----------
+  const titleEl = $('wheel-title');
+  // Older browsers lack plaintext-only; plain "true" works there and blur strips any markup.
+  if (titleEl.contentEditable !== 'plaintext-only') titleEl.contentEditable = 'true';
+  let titleBeforeEdit = '';
+  titleEl.addEventListener('focus', () => { titleBeforeEdit = titleEl.textContent; });
+  titleEl.addEventListener('input', () => {
+    document.title = titleEl.textContent.trim() || DEFAULT_TITLE;
+    fitTitle();
+  });
+  titleEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); titleEl.blur(); }
+    if (e.key === 'Escape') { titleEl.textContent = titleBeforeEdit; titleEl.blur(); }
+  });
+  titleEl.addEventListener('blur', () => {
+    setTitle(titleEl.textContent.replace(/\s+/g, ' ').trim().slice(0, 120) || DEFAULT_TITLE);
+    save();
+  });
+  $('btn-rename').addEventListener('click', () => {
+    titleEl.focus();
+    const range = document.createRange();
+    range.selectNodeContents(titleEl);
+    getSelection().removeAllRanges();
+    getSelection().addRange(range);
+  });
 
   Object.entries(SKINS).forEach(([id, s]) => $('skin').add(new Option(s.name, id)));
   $('skin').addEventListener('change', (e) => applySkin(e.target.value));

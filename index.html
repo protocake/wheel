@@ -27,7 +27,12 @@
 </head>
 <body>
   <header class="topbar">
-    <h1 id="wheel-title">Wheel Spinner</h1>
+    <div class="title-wrap">
+      <h1 id="wheel-title" contenteditable="plaintext-only" spellcheck="false" title="Click to rename" aria-label="Wheel title (click to rename)">Wheel Spinner</h1>
+      <button id="btn-rename" class="icon rename" title="Rename wheel" aria-label="Rename wheel">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13.5 6.5l4 4" /></svg>
+      </button>
+    </div>
     <div class="topbar-actions">
       <button id="btn-share" class="primary" title="Copy a link to this wheel">Share link</button>
       <button id="btn-fullscreen" class="icon" title="Fullscreen" aria-label="Fullscreen">
