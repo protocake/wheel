@@ -290,6 +290,57 @@
   --hint-size: 1.4rem;
 }
 
+/* ---------- Loving Whimsy · Hearts ---------- */
+:root[data-skin="hearts"] {
+  color-scheme: light;
+  --bg: #fff4f6;
+  --bg-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cg fill='%23ffd3dd'%3E%3Cpath transform='translate(34 48) rotate(-14) scale(1.6)' d='M0 7C-10 0-6-9 0-3.5C6-9 10 0 0 7Z'/%3E%3Cpath transform='translate(190 120) rotate(12) scale(2.1)' d='M0 7C-10 0-6-9 0-3.5C6-9 10 0 0 7Z'/%3E%3Cpath transform='translate(90 210) rotate(-6) scale(1.2)' d='M0 7C-10 0-6-9 0-3.5C6-9 10 0 0 7Z'/%3E%3C/g%3E%3Ccircle cx='150' cy='40' r='5' fill='%23ffe2bd'/%3E%3Ccircle cx='230' cy='220' r='4' fill='%23d3eedd'/%3E%3C/svg%3E");
+  --bg-size: 260px 260px;
+  --surface: #ffffff;
+  --ink: #5b2a3c;
+  --muted: #9a5a70;
+  --line: #f2c4d0;
+  --accent: #ff6f91;
+  --accent-ink: #ffffff;
+  --danger: #c2264f;
+  --font-display: "Gochi Hand", "Bradley Hand", cursive;
+  --font-body: "Quicksand", "Trebuchet MS", sans-serif;
+  --title-size: 2.2rem;
+  --title-weight: 400;
+  --radius: 999px;
+  --topbar-border: none;
+  --btn-border: 2px solid #f2c4d0;
+  --btn-weight: 600;
+  --primary-border: 2px solid #5b2a3c;
+  --primary-shadow: 0 3px 0 #5b2a3c;
+  --panel-border: 2px solid #5b2a3c;
+  --panel-radius: 26px;
+  --panel-shadow: 0 6px 0 #ffc9d6;
+  --tab-track: transparent;
+  --tab-radius: 999px;
+  --tab-border: 2px dashed #d9a3b3;
+  --tab-active-bg: #ffe0e8;
+  --tab-active-fg: #5b2a3c;
+  --tab-active-shadow: 0 0 0 2px #5b2a3c;
+  --field-bg: #fff9fa;
+  --field-border: 2px dashed #f2c4d0;
+  --field-radius: 16px;
+  --field-font: 600 var(--step-1)/1.65 var(--font-body);
+  --hub-bg: #ffffff;
+  --hub-fg: #5b2a3c;
+  --hub-border: 3px solid #5b2a3c;
+  --hub-shadow: 0 4px 0 #5b2a3c;
+  --hub-weight: 400;
+  --hub-case: none;
+  --hub-tracking: 0;
+  --hub-scale: 1.5;
+  --pointer: #ff6f91;
+  --pointer-stroke: #5b2a3c;
+  --pointer-stroke-width: 3;
+  --hint-font: var(--font-display);
+  --hint-size: 1.3rem;
+}
+
 /* ---------- Mandala ---------- */
 :root[data-skin="mandala"] {
   color-scheme: light;
@@ -716,6 +767,9 @@ dialog::backdrop { background: rgb(10 12 20 / .55); }
 :root[data-skin="mandala"] body::before { left: -190px; top: -190px; }
 :root[data-skin="mandala"] body::after { right: -190px; bottom: -190px; }
 
+:root[data-skin="hearts"] .tab.active { border-style: solid; border-color: transparent; }
+:root[data-skin="hearts"] #winner-name { font-size: 2.6rem; }
+
 /* Sticker: tabs are separate stickers. */
 :root[data-skin="sticker"] .tabs { gap: 8px; padding: 0; }
 
@@ -727,6 +781,7 @@ dialog::backdrop { background: rgb(10 12 20 / .55); }
   .panel { max-width: 560px; width: 100%; margin: 0 auto; rotate: 0deg; }
   #entries { min-height: 180px; }
   :root[data-skin="whimsy"] { --title-size: 2rem; }
+  :root[data-skin="hearts"] { --title-size: 1.8rem; }
   :root[data-skin="mandala"] body::before,
   :root[data-skin="mandala"] body::after { width: 240px; height: 240px; }
   :root[data-skin="mandala"] body::before { left: -120px; top: -120px; }

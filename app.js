@@ -158,6 +158,15 @@
     }
   }
 
+  // Heart with its point at +y, sized to roughly r.
+  function heartPath(g, r) {
+    g.beginPath();
+    g.moveTo(0, r * 0.8);
+    g.bezierCurveTo(-r * 1.25, 0, -r * 0.6, -r * 1.05, 0, -r * 0.35);
+    g.bezierCurveTo(r * 0.6, -r * 1.05, r * 1.25, 0, 0, r * 0.8);
+    g.closePath();
+  }
+
   function drawPeg(shape, x, y, r, angle, color, center) {
     ctx.save();
     ctx.translate(x, y);
@@ -166,6 +175,10 @@
     if (shape === 'dot') {
       ctx.beginPath();
       ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (shape === 'heart') {
+      ctx.rotate(Math.PI / 2); // point the heart at the hub
+      heartPath(ctx, r);
       ctx.fill();
     } else if (shape === 'flower') {
       for (let k = 0; k < 5; k++) {
@@ -212,6 +225,14 @@
       ctx.stroke();
     }
     const radius = outer - rimWidth;
+    if (s.rim.stitch) {
+      circle(c, outer - rimWidth * 0.5);
+      ctx.lineWidth = size * 0.003;
+      ctx.strokeStyle = s.rim.stitch;
+      ctx.setLineDash([size * 0.012, size * 0.009]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
     if (s.rim.inner) {
       circle(c, radius + size * 0.002);
       ctx.lineWidth = size * 0.005;
@@ -276,11 +297,10 @@
       ctx.fillStyle = g;
       ctx.fill();
     }
-    if (s.rim.color === '#111111' || s.petals) {
-      // Outline the slice disc for the inked skins.
+    if (s.discStroke) {
       circle(c, radius);
-      ctx.lineWidth = size * (s.petals ? 0.005 : 0.004);
-      ctx.strokeStyle = s.petals ? s.petals.stroke : '#111111';
+      ctx.lineWidth = size * s.discStroke.width;
+      ctx.strokeStyle = s.discStroke.color;
       ctx.stroke();
     }
 
@@ -458,7 +478,10 @@
         cctx.translate(p.x, p.y);
         cctx.rotate(p.r);
         cctx.fillStyle = p.color;
-        if (shape === 'petals') {
+        if (shape === 'hearts') {
+          heartPath(cctx, p.w);
+          cctx.fill();
+        } else if (shape === 'petals') {
           cctx.beginPath();
           cctx.ellipse(0, 0, p.w * 0.6, p.h * 0.75, 0, 0, Math.PI * 2);
           cctx.fill();
