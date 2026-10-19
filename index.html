@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wheel Spinner</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1 id="wheel-title">Wheel Spinner</h1>
+    <div class="topbar-actions">
+      <button id="btn-share" title="Copy a link to this wheel">Share link</button>
+      <button id="btn-fullscreen" class="ghost" title="Fullscreen">⛶</button>
+      <button id="btn-mute" class="ghost" title="Toggle sound">🔊</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="wheel-area">
+      <div class="wheel-wrap">
+        <canvas id="wheel" width="800" height="800" aria-label="Spinning wheel"></canvas>
+        <div class="pointer" aria-hidden="true"></div>
+        <button id="hub" class="hub" aria-label="Spin the wheel">SPIN</button>
+      </div>
+      <p class="hint">Click the wheel or press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to spin</p>
+    </section>
+
+    <aside class="panel">
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-tab="entries" role="tab">Entries <span id="count-entries" class="badge">0</span></button>
+        <button class="tab" data-tab="results" role="tab">Results <span id="count-results" class="badge">0</span></button>
+      </div>
+
+      <div class="tab-panel" id="panel-entries">
+        <div class="toolbar">
+          <button id="btn-shuffle">Shuffle</button>
+          <button id="btn-sort">Sort</button>
+          <button id="btn-clear" class="danger">Clear</button>
+        </div>
+        <textarea id="entries" spellcheck="false" placeholder="One entry per line"></textarea>
+        <label class="option">
+          Spin time
+          <input id="spin-time" type="range" min="2" max="20" value="6" />
+          <span id="spin-time-label">6s</span>
+        </label>
+      </div>
+
+      <div class="tab-panel hidden" id="panel-results">
+        <div class="toolbar">
+          <button id="btn-clear-results" class="danger">Clear results</button>
+        </div>
+        <ol id="results"></ol>
+      </div>
+    </aside>
+  </main>
+
+  <dialog id="winner-dialog">
+    <p class="winner-label">We have a winner!</p>
+    <h2 id="winner-name"></h2>
+    <div class="dialog-actions">
+      <button id="btn-close">Close</button>
+      <button id="btn-remove" class="primary">Remove</button>
+    </div>
+  </dialog>
+
+  <canvas id="confetti" aria-hidden="true"></canvas>
+  <script src="app.js"></script>
+</body>
+</html>
